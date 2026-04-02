@@ -311,11 +311,95 @@ function buildAnalysis(tags) {
   return text;
 }
 
+// ── Admin setup screen (открывается по ?setup в URL) ──────────────────
+function maybeShowSetup() {
+  if (location.search.includes('setup')) {
+    document.getElementById('app').innerHTML = `
+      <div style="max-width:480px;margin:2rem auto;">
+        <div style="font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">Настройка — только для родителя</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:1rem;">Groq API ключ</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:1rem;line-height:1.6;">Получите бесплатный ключ на <a href="https://console.groq.com" target="_blank" style="color:var(--accent2);">console.groq.com</a> → API Keys → Create API key. Ключ сохранится в браузере на этом устройстве и нигде больше.</p>
+        <input id="key-inp" type="password" placeholder="gsk_..." style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);outline:none;margin-bottom:10px;">
+        <button onclick="saveKey()" style="width:100%;padding:13px;background:var(--accent2);color:white;border:none;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;">Сохранить ключ</button>
+        <p id="key-msg" style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;"></p>
+        <div style="margin-top:1.5rem;padding:12px 14px;background:var(--sel-bg);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.6;">
+          Эми не видит эту страницу и не видит ключ. Ей отправляйте ссылку без <code>?setup</code>.
+        </div>
+      </div>`;
+    return true;
+  }
+  return false;
+}
+
+function saveKey() {
+  const k = document.getElementById('key-inp').value.trim();
+  const msg = document.getElementById('key-msg');
+  if (!k.startsWith('gsk_')) { msg.textContent = 'Ключ должен начинаться с gsk_'; msg.style.color='#c0392b'; return; }
+  localStorage.setItem('groq_key', k);
+  msg.textContent = '✓ Ключ сохранён! Теперь отправьте Эми обычную ссылку без ?setup';
+  msg.style.color = '#27ae60';
+}
+
+async function runGroq(summary, tags, fallbackFn) {
+  const key = localStorage.getItem('groq_key');
+  if (!key) { fallbackFn(); return; }
+
+  const prompt = `Ты добрый помощник, который помогает 14-летней девочке лучше понять себя. Она заполнила анкету про интересы и ценности. Твоя задача — не «выбрать ей профессию», а помочь увидеть паттерны и мягко предложить несколько направлений для исследования.
+
+Её ответы:
+${summary}
+
+Направления по анкете: ${tags.join(', ') || 'пока не определено'}
+
+Напиши ответ лично ей, как умный старший друг — не учитель и не консультант. Структура: тёплое начало (1–2 предложения о том, что заметил в ответах), затем 2–3 направления с мягкими формулировками («похоже, тебе может быть интересно...»), один конкретный маленький шаг на сегодня, и напоминание что это не окончательный ответ. Без нумерованных списков, без канцелярита. По-русски. Максимум 280 слов.`;
+
+  const out = document.getElementById('aout');
+  out.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 700,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!resp.ok) { fallbackFn(); return; }
+
+    out.innerHTML = '';
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if (d === '[DONE]') break;
+        try {
+          const j = JSON.parse(d);
+          const t = j.choices?.[0]?.delta?.content;
+          if (t) out.textContent += t;
+        } catch {}
+      }
+    }
+  } catch(e) {
+    fallbackFn();
+  }
+}
+
 function renderResult(app) {
   const tags = inferDirs();
-  const analysis = buildAnalysis(tags);
 
-  // Build share items for selective sharing
   const shareItems = Q.map((q,i) => ({
     q: q.text,
     a: Array.isArray(ans[i]) ? (ans[i].join(', ')||'—') : (ans[i]||'—'),
@@ -332,7 +416,7 @@ function renderResult(app) {
 
     <div class="ai-box">
       <h3>Что я заметила в твоих ответах</h3>
-      <div class="ai-text" id="aout"></div>
+      <div class="ai-text" id="aout"><div class="dots"><span></span><span></span><span></span></div></div>
     </div>
 
     <div class="privacy-note">
@@ -358,17 +442,25 @@ function renderResult(app) {
       </div>
     </div>`;
 
-  // Animate analysis text
-  const out = document.getElementById('aout');
-  let i = 0;
-  const chars = analysis.split('');
-  function typeNext() {
-    if (i < chars.length) {
-      out.textContent += chars[i++];
-      setTimeout(typeNext, i < 50 ? 8 : 4);
+  const sum = Q.map((q,i) => {
+    const a = ans[i];
+    return `${q.text}\n${Array.isArray(a)?(a.join(', ')||'—'):(a||'—')}`;
+  }).join('\n\n');
+
+  // Try real AI, fall back to local analysis
+  runGroq(sum, tags, () => {
+    const out = document.getElementById('aout');
+    if (out) {
+      out.innerHTML = '';
+      const analysis = buildAnalysis(tags);
+      let i = 0;
+      const chars = analysis.split('');
+      function typeNext() {
+        if (i < chars.length) { out.textContent += chars[i++]; setTimeout(typeNext, 4); }
+      }
+      typeNext();
     }
-  }
-  setTimeout(typeNext, 300);
+  });
 }
 
 function toggleShare() {
@@ -408,7 +500,7 @@ function fallback(text) {
   document.body.removeChild(ta);
 }
 
-render();
+if (!maybeShowSetup()) render();
 </script>
 </body>
 </html>
