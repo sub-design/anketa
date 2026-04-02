@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мой компас</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf8f4; --surface: #fff; --accent: #c8a97e; --accent2: #8b6f4e;
+    --text: #2d2416; --muted: #8a7a68; --border: #e8e0d5;
+    --sel-bg: #f5ede0; --sel-bd: #c8a97e; --r: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .hero {
+    background: linear-gradient(135deg, #2d2416 0%, #4a3728 50%, #2d2416 100%);
+    padding: 2.5rem 1.5rem 3.5rem; text-align: center; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(200,169,126,0.15) 0%, transparent 50%),
+                radial-gradient(circle at 70% 30%, rgba(200,169,126,0.1) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .hero-icon { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; animation: spin 20s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem,5vw,2.8rem); color: #faf8f4; font-weight: 400; margin-bottom: 0.5rem; position: relative; }
+  .hero h1 em { color: var(--accent); font-style: italic; }
+  .hero p { color: rgba(250,248,244,0.65); font-size: 0.95rem; font-weight: 300; max-width: 400px; margin: 0 auto; line-height: 1.6; position: relative; }
+
+  .main { max-width: 620px; margin: 0 auto; padding: 1.75rem 1.25rem 4rem; }
+
+  .prog-wrap { margin-bottom: 1.75rem; display: flex; align-items: center; gap: 12px; }
+  .prog-track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .prog-lbl { font-size: 12px; color: var(--muted); white-space: nowrap; font-weight: 500; }
+
+  .block-tag { display: inline-block; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent2); background: var(--sel-bg); padding: 4px 12px; border-radius: 99px; margin-bottom: 1rem; }
+
+  .qcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 1.5rem; margin-bottom: 1.25rem; animation: up 0.35s ease both; }
+  @keyframes up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+  .qtext { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 400; line-height: 1.45; margin-bottom: 0.4rem; }
+  .qhint { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.2rem; line-height: 1.5; }
+
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; user-select: none; -webkit-user-select: none; }
+  .opt:active { background: var(--sel-bg); }
+  .opt.sel { border-color: var(--sel-bd); background: var(--sel-bg); }
+  .dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border); flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .opt.sel .dot { background: var(--accent); border-color: var(--accent); }
+  .opt.sel .dot::after { content: ''; width: 6px; height: 6px; background: white; border-radius: 50%; display: block; }
+  .sq .dot { border-radius: 4px; }
+  .sq.sel .dot::after { content: '✓'; color: white; font-size: 11px; background: transparent; width: auto; height: auto; border-radius: 0; }
+  .olabel { font-size: 14px; line-height: 1.45; color: var(--text); }
+
+  textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif; color: var(--text); background: var(--bg); resize: vertical; min-height: 90px; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .actions { display: flex; justify-content: space-between; align-items: center; }
+  .btn { padding: 12px 22px; border-radius: 10px; border: 1px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text); transition: all 0.15s; min-height: 44px; }
+  .btn:active { background: var(--border); }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+  .btn-next { background: var(--accent2); color: white; border-color: var(--accent2); }
+  .btn-next:active { background: var(--accent); border-color: var(--accent); }
+  .btn-next:disabled { opacity: 0.35; }
+
+  /* Result */
+  .rhero { text-align: center; padding: 1.5rem 0 1.25rem; animation: up 0.4s ease both; }
+  .rhero h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 400; margin-bottom: 0.4rem; }
+  .rhero p { color: var(--muted); font-size: 0.9rem; }
+
+  .dtags { display: flex; flex-wrap: wrap; gap: 7px; margin: 1rem 0 1.75rem; justify-content: center; }
+  .dtag { background: var(--sel-bg); color: var(--accent2); border: 1px solid var(--accent); padding: 5px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; }
+
+  /* AI analysis box */
+  .ai-box { background: linear-gradient(135deg, #2d2416, #4a3728); border-radius: var(--r); padding: 1.5rem; color: #faf8f4; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+  .ai-box::before { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: radial-gradient(circle, rgba(200,169,126,0.2) 0%, transparent 70%); border-radius: 50%; transform: translate(30%,-30%); }
+  .ai-box h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 400; margin-bottom: 0.75rem; position: relative; }
+  .ai-text { font-size: 14px; line-height: 1.75; color: rgba(250,248,244,0.9); position: relative; }
+
+  .privacy-note { background: var(--sel-bg); border: 1px solid var(--accent); border-radius: 10px; padding: 14px 16px; margin-bottom: 1.5rem; font-size: 13px; color: var(--accent2); line-height: 1.55; text-align: center; }
+
+  /* Share section - initially hidden */
+  .share-section { margin-top: 1.5rem; }
+  .share-toggle { display: block; width: 100%; padding: 13px; background: transparent; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--r); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; text-align: center; transition: all 0.2s; min-height: 48px; }
+  .share-toggle:active { background: var(--border); }
+  .share-box { display: none; margin-top: 12px; }
+  .share-box.open { display: block; animation: up 0.3s ease both; }
+  .share-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-align: center; }
+
+  .share-items { display: flex; flex-direction: column; gap: 8px; }
+  .share-item { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .share-item label { font-size: 13px; color: var(--text); flex: 1; line-height: 1.4; }
+  .share-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent2); flex-shrink: 0; cursor: pointer; }
+
+  .btn-send { display: block; width: 100%; padding: 13px; background: var(--accent2); color: white; border: none; border-radius: var(--r); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; text-align: center; transition: background 0.15s; margin-top: 12px; min-height: 48px; }
+  .btn-send:active { background: var(--accent); }
+  .copy-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px; }
+
+  .dots { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
+  .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s ease infinite; }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: scale(0.7); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-icon">🧭</span>
+  <h1>Мой <em>компас</em></h1>
+  <p>Здесь нет правильных ответов. Отвечай честно — это только для тебя.</p>
+</div>
+
+<div class="main" id="app"></div>
+
+<script>
+const Q = [
+  { block:"Интересы", text:"Что ты делаешь, когда никто ничего не требует?", hint:"Свободное время — самый честный индикатор.", type:"multi",
+    opts:["Рисую, создаю что-то руками","Читаю — книги, статьи, комиксы","Смотрю кино, сериалы, ютуб","Тусуюсь с друзьями или организую встречи","Играю в игры (видео или настольные)","Занимаюсь спортом или танцами","Программирую или разбираюсь с техникой","Слушаю или пишу музыку","Ухаживаю за животными или растениями","Помогаю другим — просто так"] },
+  { block:"Интересы", text:"Что смотришь или читаешь не потому что надо, а потому что интересно?", hint:"YouTube, TikTok, книги, блоги — что угодно. Можно написать конкретные каналы.", type:"text" },
+  { block:"Интересы", text:"Что тебе совсем не нравится делать?", hint:"Это помогает сузить круг. Можно выбрать несколько.", type:"multi",
+    opts:["Учить и запоминать много теории","Решать сложные математические задачи","Общаться с незнакомыми людьми","Работать по жёсткому расписанию","Долго делать одно и то же","Быть в центре внимания и выступать","Работать с документами и цифрами","Физически двигаться, быть на ногах"] },
+  { block:"Интересы", text:"После чего чувствуешь себя уставшей, а после чего — с энергией?", hint:"Например: «устаю от больших компаний, заряжаюсь когда рисую».", type:"text" },
+  { block:"Школа", text:"Какие предметы идут легко и с удовольствием?", hint:"Не обязательно те, где пятёрки. Именно те, где нравится процесс.", type:"multi",
+    opts:["Математика / физика","Химия / биология","История / обществознание","Литература / русский язык","Иностранные языки","Информатика","ИЗО / музыка / труд","Физкультура","География / экология"] },
+  { block:"Школа", text:"Если бы завтра отменили все уроки, кроме трёх — какие бы оставила?", hint:"Первое что приходит в голову — скорее всего и есть ответ.", type:"text" },
+  { block:"Способности", text:"В чём тебя замечают другие — друзья, родители, учителя?", hint:"«Ты всегда так здорово...» — что обычно говорят дальше?", type:"multi",
+    opts:["Объясняю сложное так, что всем понятно","Замечаю детали, которые другие пропускают","Быстро схватываю новые идеи","Умею убеждать и вести за собой","Создаю что-то красивое или необычное","Нахожу неочевидные решения задач","Слушаю и поддерживаю — ко мне идут с проблемами","Хорошо организую — людей, время, процессы","Легко работаю с числами и логикой"] },
+  { block:"Способности", text:"Как тебе легче всего разобраться в чём-то новом?", hint:"Выбери один вариант, который ближе всего.", type:"single",
+    opts:["Попробовать самой — руками и через ошибки","Почитать и разобраться самостоятельно","Когда кто-то объясняет — лекция или разговор","Через видео, схемы, картинки","В споре или обсуждении с другими"] },
+  { block:"Ценности", text:"Что для тебя важно в будущей работе?", hint:"Выбери 2–3 самых важных — не то, что «правильно», а что реально важно тебе.", type:"multi",
+    opts:["Помогать людям и делать что-то полезное","Зарабатывать хорошо и стабильно","Создавать что-то своё — творить","Всё время узнавать новое","Работать самостоятельно, без постоянного контроля","Быть частью команды","Решать сложные интересные задачи","Иметь стабильный ритм без неожиданностей","Путешествовать и менять обстановку"] },
+  { block:"Ценности", text:"Есть кто-то, на кого хотелось бы быть похожей?", hint:"Реальный человек, персонаж, блогер, учёный — кто угодно. Что в нём тебя цепляет?", type:"text" },
+  { block:"Будущее", text:"Представь, тебе 20–22 года. Как проходит твой обычный день?", hint:"Не профессия — а именно: где ты, с кем, что делаешь.", type:"single",
+    opts:["В офисе или кампусе, с командой и проектами","Дома или в кафе — работаю сама по себе","В движении — встречи, поездки, новые места","В лаборатории, мастерской или студии","На природе, с людьми или животными","На сцене или перед аудиторией"] },
+  { block:"Будущее", text:"Если бы деньги и чужое мнение совсем не имели значения — чем бы занималась?", hint:"Самый честный вопрос. Напиши первое, что пришло в голову — без фильтров.", type:"text" }
+];
+
+let cur = 0;
+let ans = Q.map(q => q.type==='multi' ? [] : '');
+
+function render() {
+  const app = document.getElementById('app');
+  if (cur === Q.length) { renderResult(app); return; }
+  const q = Q[cur];
+  const pct = Math.round((cur / Q.length) * 100);
+  app.innerHTML = `
+    <div class="prog-wrap">
+      <div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <span class="prog-lbl">${cur+1} / ${Q.length}</span>
+    </div>
+    <span class="block-tag">${q.block}</span>
+    <div class="qcard">
+      <div class="qtext">${q.text}</div>
+      <div class="qhint">${q.hint}</div>
+      ${inp(q, cur)}
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="go(-1)" ${cur===0?'disabled':''}>← Назад</button>
+      <button class="btn btn-next" onclick="go(1)" id="nb">${cur===Q.length-1?'Завершить →':'Далее →'}</button>
+    </div>`;
+  chk();
+}
+
+function inp(q, idx) {
+  if (q.type==='text') return `<textarea placeholder="Напиши здесь..." oninput="ans[${idx}]=this.value;chk()">${ans[idx]}</textarea>`;
+  const sq = q.type==='multi' ? 'sq' : '';
+  return `<div class="opts">${q.opts.map((o,i)=>{
+    const sel = q.type==='multi' ? ans[idx].includes(o) : ans[idx]===o;
+    const fn = q.type==='multi' ? `tm(${idx},${i})` : `ps(${idx},${i})`;
+    return `<div class="opt ${sq}${sel?' sel':''}" onclick="${fn}"><div class="dot"></div><span class="olabel">${o}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function ps(idx,i){ ans[idx]=Q[idx].opts[i]; render(); }
+function tm(idx,i){
+  const v=Q[idx].opts[i],a=ans[idx],p=a.indexOf(v);
+  if(p===-1) a.push(v); else a.splice(p,1);
+  render();
+}
+function chk(){
+  const b=document.getElementById('nb'); if(!b) return;
+  const q=Q[cur],a=ans[cur];
+  if(q.type==='multi') b.disabled=a.length===0;
+  else if(q.type==='single') b.disabled=!a;
+  else b.disabled=!a.trim();
+}
+function go(d){ cur=Math.max(0,Math.min(Q.length,cur+d)); render(); window.scrollTo(0,0); }
+
+function inferDirs() {
+  const tags = new Set();
+  const hobbies=ans[0], dislikes=ans[2], energy=(ans[3]||'').toLowerCase();
+  const subj=ans[4], strengths=ans[6], values=ans[8];
+
+  if (hobbies.includes('Рисую, создаю что-то руками') || hobbies.includes('Слушаю или пишу музыку')) tags.add('Творческие специальности');
+  if (subj.includes('Математика / физика') || subj.includes('Информатика') || hobbies.includes('Программирую или разбираюсь с техникой')) tags.add('IT и технологии');
+  if (subj.includes('Химия / биология')) tags.add('Естественные науки');
+  if (subj.includes('История / обществознание') || subj.includes('Литература / русский язык')) tags.add('Гуманитарные науки');
+  if (subj.includes('Иностранные языки')) tags.add('Лингвистика / Международные отношения');
+  if (strengths.includes('Слушаю и поддерживаю — ко мне идут с проблемами')) tags.add('Психология / Социальная работа');
+  if (strengths.includes('Умею убеждать и вести за собой') || values.includes('Зарабатывать хорошо и стабильно')) tags.add('Бизнес и управление');
+  if (values.includes('Помогать людям и делать что-то полезное') && subj.includes('Химия / биология')) tags.add('Медицина / Здравоохранение');
+  if (hobbies.includes('Ухаживаю за животными или растениями')) tags.add('Биология / Ветеринария');
+  if (strengths.includes('Создаю что-то красивое или необычное')) tags.add('Дизайн / Искусство');
+
+  if (dislikes.includes('Решать сложные математические задачи')) tags.delete('IT и технологии');
+  if (dislikes.includes('Учить и запоминать много теории')) tags.delete('Медицина / Здравоохранение');
+  if (dislikes.includes('Общаться с незнакомыми людьми')) { tags.delete('Бизнес и управление'); tags.delete('Психология / Социальная работа'); }
+
+  if (energy.includes('рису') || energy.includes('творч') || energy.includes('создаю')) tags.add('Творческие специальности');
+  if (energy.includes('код') || energy.includes('программ')) tags.add('IT и технологии');
+  if (energy.includes('люди') || energy.includes('общен') || energy.includes('помог')) tags.add('Психология / Социальная работа');
+
+  return [...tags].slice(0,5);
+}
+
+// Local AI analysis — no external API needed
+function buildAnalysis(tags) {
+  const hobbies = ans[0], dislikes = ans[2];
+  const subj = ans[4], strengths = ans[6], values = ans[8];
+  const dream = ans[11] || '';
+  const energy = ans[3] || '';
+  const youtube = ans[1] || '';
+
+  let text = '';
+
+  // Opening
+  const openings = [
+    'Посмотрела на твои ответы — и кое-что сразу бросилось в глаза.',
+    'В твоих ответах есть несколько интересных паттернов.',
+    'Ты очень по-разному ответила на разные вопросы — и это само по себе говорит о многом.'
+  ];
+  text += openings[Math.floor(Math.random() * openings.length)] + '\n\n';
+
+  // Analyze strengths vs dislikes
+  const creative = hobbies.includes('Рисую, создаю что-то руками') || hobbies.includes('Слушаю или пишу музыку') || strengths.includes('Создаю что-то красивое или необычное');
+  const techie = subj.includes('Математика / физика') || subj.includes('Информатика') || hobbies.includes('Программирую или разбираюсь с техникой');
+  const helper = strengths.includes('Слушаю и поддерживаю — ко мне идут с проблемами') || values.includes('Помогать людям и делать что-то полезное');
+  const curious = hobbies.includes('Читаю — книги, статьи, комиксы') || subj.includes('История / обществознание') || subj.includes('Иностранные языки');
+  const noMath = dislikes.includes('Решать сложные математические задачи');
+  const noStage = dislikes.includes('Быть в центре внимания и выступать');
+  const noRoutine = dislikes.includes('Долго делать одно и то же');
+
+  // Build direction suggestions
+  const suggestions = [];
+
+  if (creative && !noRoutine) {
+    suggestions.push({
+      dir: 'Что-то творческое — дизайн, иллюстрация, медиа',
+      why: 'Ты создаёшь вещи руками и глаз у тебя, похоже, хороший — это редкое сочетание, которое очень ценится.'
+    });
+  }
+  if (techie && !noMath) {
+    suggestions.push({
+      dir: 'IT, данные, технологии',
+      why: 'Логика и технологии тебе близки. В этой сфере сейчас огромный выбор — от разработки до аналитики и UX.'
+    });
+  }
+  if (helper && !dislikes.includes('Общаться с незнакомыми людьми')) {
+    suggestions.push({
+      dir: 'Психология, социальная работа, педагогика',
+      why: 'К тебе идут с проблемами — значит, ты умеешь слушать и создавать безопасное пространство. Это не просто хорошее качество, это профессиональный навык.'
+    });
+  }
+  if (curious && subj.includes('Иностранные языки')) {
+    suggestions.push({
+      dir: 'Международные отношения, лингвистика, журналистика',
+      why: 'Языки + интерес к людям и событиям — хорошая база для профессий, где нужно понимать разные культуры и уметь рассказывать истории.'
+    });
+  }
+  if (subj.includes('Химия / биология') && !dislikes.includes('Учить и запоминать много теории')) {
+    suggestions.push({
+      dir: 'Биология, экология, медицина',
+      why: 'Естественные науки тебе даются — это открывает много направлений, от медицины до биотехнологий и экологии.'
+    });
+  }
+
+  // Fallback if nothing matched well
+  if (suggestions.length === 0) {
+    suggestions.push({
+      dir: 'Гуманитарные науки или социальные специальности',
+      why: 'Судя по ответам, тебе важны смыслы и люди — это хорошая точка отсчёта.'
+    });
+  }
+
+  // Add suggestions
+  const top = suggestions.slice(0, 3);
+  text += 'Несколько направлений, которые, похоже, могут тебе подойти:\n\n';
+  top.forEach(s => {
+    text += `— ${s.dir}. ${s.why}\n\n`;
+  });
+
+  // Energy note
+  if (energy) {
+    text += `Ты написала про энергию: «${energy.slice(0,80)}${energy.length>80?'...':''}» — это важная подсказка. Лучше всего работается тогда, когда занятие само по себе заряжает, а не тратит.\n\n`;
+  }
+
+  // Dream note
+  if (dream && dream.length > 5) {
+    text += `И напоследок — ты написала, что занялась бы «${dream.slice(0,60)}${dream.length>60?'...':''}». Не обязательно это и станет профессией, но это стоит запомнить.\n\n`;
+  }
+
+  // Closing
+  text += 'Это не готовый ответ — скорее несколько дверей, которые можно приоткрыть и посмотреть, что там. Всё ещё можно поменять, и не один раз.';
+
+  return text;
+}
+
+function renderResult(app) {
+  const tags = inferDirs();
+  const analysis = buildAnalysis(tags);
+
+  // Build share items for selective sharing
+  const shareItems = Q.map((q,i) => ({
+    q: q.text,
+    a: Array.isArray(ans[i]) ? (ans[i].join(', ')||'—') : (ans[i]||'—'),
+    idx: i
+  }));
+
+  app.innerHTML = `
+    <div class="rhero">
+      <div style="font-size:2.2rem;margin-bottom:0.75rem">✨</div>
+      <h2>Готово!</h2>
+      <p>Вот что говорят твои ответы</p>
+    </div>
+    ${tags.length ? `<div class="dtags">${tags.map(t=>`<span class="dtag">${t}</span>`).join('')}</div>` : ''}
+
+    <div class="ai-box">
+      <h3>Что я заметила в твоих ответах</h3>
+      <div class="ai-text" id="aout"></div>
+    </div>
+
+    <div class="privacy-note">
+      🔒 Твои ответы никуда не отправляются автоматически.<br>
+      Ты сама решаешь, чем поделиться с родителями.
+    </div>
+
+    <div class="share-section">
+      <button class="share-toggle" onclick="toggleShare()">
+        Хочу поделиться частью ответов с папой / мамой
+      </button>
+      <div class="share-box" id="share-box">
+        <p class="share-label">Отметь только те вопросы, ответы на которые хочешь показать:</p>
+        <div class="share-items" id="share-items">
+          ${shareItems.map((item,i) => `
+            <div class="share-item">
+              <input type="checkbox" id="si${i}" value="${i}">
+              <label for="si${i}">${item.q}</label>
+            </div>`).join('')}
+        </div>
+        <button class="btn-send" onclick="copySelected()">📋 Скопировать выбранное</button>
+        <p class="copy-hint">Текст скопируется — вставь его в Telegram или другой мессенджер</p>
+      </div>
+    </div>`;
+
+  // Animate analysis text
+  const out = document.getElementById('aout');
+  let i = 0;
+  const chars = analysis.split('');
+  function typeNext() {
+    if (i < chars.length) {
+      out.textContent += chars[i++];
+      setTimeout(typeNext, i < 50 ? 8 : 4);
+    }
+  }
+  setTimeout(typeNext, 300);
+}
+
+function toggleShare() {
+  const box = document.getElementById('share-box');
+  box.classList.toggle('open');
+}
+
+function copySelected() {
+  const checked = Array.from(document.querySelectorAll('#share-items input:checked')).map(el => parseInt(el.value));
+  if (checked.length === 0) {
+    alert('Отметь хотя бы один вопрос');
+    return;
+  }
+  const lines = ['🧭 Мой компас — я выбрала поделиться этим:\n'];
+  checked.forEach(i => {
+    const a = ans[i];
+    const v = Array.isArray(a) ? (a.join(', ')||'—') : (a||'—');
+    lines.push(`${Q[i].text}\n→ ${v}`);
+  });
+
+  const text = lines.join('\n\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallback(text));
+  } else { fallback(text); }
+}
+
+function done() {
+  const b = document.querySelector('.btn-send');
+  b.textContent = '✓ Скопировано! Вставь в мессенджер';
+  setTimeout(()=>{ b.textContent = '📋 Скопировать выбранное'; }, 3000);
+}
+function fallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); done(); } catch {}
+  document.body.removeChild(ta);
+}
+
+render();
+</script>
+</body>
+</html>
